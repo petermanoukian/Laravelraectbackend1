@@ -11,11 +11,11 @@ class EnsureSuperadmin
     public function handle(Request $request, Closure $next): Response
     {
         $user = $request->user();
+		$roles = $user->getRoleNames();
+		   if ($user && $user->hasRole('superadmin')) {
+				return $next($request);
+			}
 
-        if ($user && $user->role === 'superadmin') {
-            return $next($request);
-        }
-
-        return response()->json(['message' => 'Forbidden. Superadmin only.'], 403);
+        return response()->json(['message' => " $roles Forbidden. Superadmin only."], 403);
     }
 }
