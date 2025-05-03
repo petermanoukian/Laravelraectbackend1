@@ -24,14 +24,45 @@ class SuperadminController extends Controller
 	public function getAllUsers(Request $request)
 	{
 		$perPage = $request->get('per_page', 10); // Default to 10 if not provided
+		$sortField = $request->get('sortField', 'id'); // Default to 'id'
+		$sortDirection = $request->get('sortDirection', 'desc'); // Default to 'desc'
+		$search = $request->get('search', ''); // Get the search query
+		$roleFilter = $request->get('role', ''); // Get the role filter
 
-		$users = User::with('roles')->orderby('id', 'desc')->paginate($perPage);
+		// Whitelist allowed sortable fields for security
+		$allowedSortFields = ['id', 'name', 'email']; // add 'role' if sorting by role name later
+		if (!in_array($sortField, $allowedSortFields)) {
+			$sortField = 'id';
+		}
 
-		return response()->json([
-			'users' => $users,
-			'user' => $request->user()
-		]);
+		// Validate direction
+		$sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+
+		$users = User::with('roles')
+			->when($roleFilter, function($query) use ($roleFilter) {
+				// Filter users by role if roleFilter is provided
+				$query->whereHas('roles', function($q) use ($roleFilter) {
+					$q->where('name', $roleFilter); // Assuming roles have a 'name' field
+				});
+			})
+			->where(function($query) use ($search) {
+				if ($search) {
+					$query->where('name', 'like', "%{$search}%")
+						  ->orWhere('email', 'like', "%{$search}%");
+				}
+			})
+			->orderBy($sortField, $sortDirection)
+			->paginate($perPage);
+
+			return response()->json([
+				'users' => $users,
+				'user' => $request->user(),
+				'log_info' => "Fetching users sorted by: $sortField $sortDirection with search: $search",
+			]);
 	}
+
+
+
 	
 
 	public function destroy($id)

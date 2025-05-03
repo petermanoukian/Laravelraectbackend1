@@ -42,7 +42,7 @@ git branch -M main
 git push -u origin main
 
 git add .
-git commit -m "May 2 at 11:23"
+git commit -m "May 3"
 git branch -M main
 
 
@@ -57,7 +57,7 @@ git push -u origin main
 
 
 git add .
-git commit -m "May 3 Logoing and centralize the api"
+git commit -m "May 3 Sort, filter and search"
 git branch -M main
 
 git push -u origin main
