@@ -57,7 +57,7 @@ git push -u origin main
 
 
 git add .
-git commit -m "May 2 Pagination Fix"
+git commit -m "May 3 Logoing and centralize the api"
 git branch -M main
 
 git push -u origin main
