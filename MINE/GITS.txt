@@ -57,9 +57,8 @@ git push -u origin main
 
 
 git add .
-git commit -m "May 3 Sort, filter and search"
+git commit -m "May 4 delete many, add users, "
 git branch -M main
-
 git push -u origin main
 
 

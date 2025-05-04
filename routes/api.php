@@ -21,9 +21,12 @@ Route::middleware('auth:sanctum')->group(function () {
     Route::middleware('superadmin')->prefix('superadmin')->group(function () {
         Route::get('/', [SuperadminController::class, 'index']);
         Route::get('/users', [SuperadminController::class, 'getAllUsers']);
-		
+		Route::post('/users/check-email', [SuperadminController::class, 'checkEmail']);
+
+		Route::post('/users/add', [SuperadminController::class, 'store']);
 		Route::delete('/userdelete/{id}', [SuperadminController::class, 'destroy']);
-		
+		Route::delete('/users/deleteall', [SuperadminController::class, 'deleteAll']);
+
 		
     });
 });
