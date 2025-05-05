@@ -8,7 +8,7 @@ use App\Models\User;
 use Illuminate\Support\Str;
 use Illuminate\Support\Facades\Hash;
 use Illuminate\Http\Response;
-
+use Illuminate\Validation\Rule;
 
 class SuperadminController extends Controller
 {
@@ -29,6 +29,21 @@ class SuperadminController extends Controller
             'user' => $request->user()
         ]);
     }
+	
+	
+	
+	public function edituser(Request $request, $id)
+    {
+        $this->ensureSuperadmin(request());
+		$useredit = User::with('roles')->find($id);
+		$usereditid = $useredit->id;
+		return response()->json([
+            'message' => "User to Edit $usereditid",
+            'useredit' => $useredit
+        ]);
+    }
+	
+
 	
 	public function getAllUsers(Request $request)
 	{
@@ -84,6 +99,19 @@ class SuperadminController extends Controller
 		return response()->json(['exists' => $exists]);
 	}
 
+	public function checkEmailEdit(Request $request)
+	{
+		$request->validate([
+			'email' => 'required|email',
+			'user_id' => 'required|integer',
+		]);
+
+		$exists = User::where('email', $request->email)
+			->where('id', '!=', $request->user_id)
+			->exists();
+
+		return response()->json(['exists' => $exists]);
+	}
 
 
 	public function store(Request $request)
@@ -94,8 +122,8 @@ class SuperadminController extends Controller
 			'email' => 'required|email|unique:users,email',
 			'password' => 'required|string|min:6',
 			'role' => 'required|in:superadmin,admin,user',
-			'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9000',
-			'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9000',
+			'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9320',
+			'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
 		]);
 
 		// Create a random suffix for uniqueness
@@ -125,7 +153,7 @@ class SuperadminController extends Controller
 		if ($request->hasFile('pdf')) {
 			$pdfExtension = $request->file('pdf')->getClientOriginalExtension();
 			$pdfName = $generatedName . '-' . $randomSuffixPdf . '.' . $pdfExtension;
-			$pdfPath = $request->file('pdf')->move(public_path('users/pdfs'), $pdfName);
+			$pdfPath = $request->file('pdf')->move(public_path('users/pdf'), $pdfName);
 			$newuser->pdf = 'users/pdf/' . $pdfName;  // Save the relative path
 		}
 		$role = $validated['role'];
@@ -136,6 +164,70 @@ class SuperadminController extends Controller
 		// Return the response
 		return response()->json(['message' => 'User created successfully', 'newuser' => $newuser], 201);
 	}
+
+
+	public function update(Request $request, $id)
+	{
+		   
+    // Or dump the request
+	
+		
+		$newuser = User::findOrFail($id);
+		$validated = $request->validate([
+			'name' => 'required|string|max:255',
+			 'email' => [
+				'required',
+				'email',
+				Rule::unique('users', 'email')->ignore($newuser->id),
+			],
+			'role' => 'required|in:superadmin,admin,user',
+			'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9320',
+			'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
+		]);
+
+		// Create a random suffix for uniqueness
+		$randomSuffixImg = Str::random(7);  // For image
+		$randomSuffixPdf = Str::random(7);  // For PDF (or other file)
+
+		// Generate user name with a random suffix
+		$generatedName = $validated['name'] . '-' . Str::random(7);
+		$newuser->name = $request->name;
+		$newuser->email = $request->email;
+
+		if ($request->filled('password')) {
+			$newuser->password = bcrypt($request->password);
+		}
+
+		// Handle image upload
+		if ($request->hasFile('img')) {
+			$imgExtension = $request->file('img')->getClientOriginalExtension();
+			$imgName = $generatedName . '-' . $randomSuffixImg . '.' . $imgExtension;
+			$imgPath = $request->file('img')->move(public_path('users/img'), $imgName);
+			$newuser->img = 'users/img/' . $imgName;  // Save the relative path
+		}
+
+		// Handle PDF or other files upload
+		if ($request->hasFile('pdf')) {
+			$pdfExtension = $request->file('pdf')->getClientOriginalExtension();
+			$pdfName = $generatedName . '-' . $randomSuffixPdf . '.' . $pdfExtension;
+			$pdfPath = $request->file('pdf')->move(public_path('users/pdf'), $pdfName);
+			$newuser->pdf = 'users/pdf/' . $pdfName;  // Save the relative path
+		}
+
+		$newuser->save();
+
+		// Update role
+		$newuser->syncRoles([$request->role]);
+
+		return response()->json([
+			'message' => 'User updated successfully',
+			'usereditted' => $newuser->load('roles'),
+		]);
+
+
+	}
+
+
 
 
 	public function destroy($id)
