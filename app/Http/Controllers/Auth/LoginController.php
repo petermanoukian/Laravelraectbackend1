@@ -33,6 +33,7 @@ class LoginController extends Controller
 					'id' => $user->id,
 					'email' => $user->email,
 					'name' => $user->name,
+					'img' => $user->img,
 					'role' => $user->getRoleNames()->first() // Spatie returns a collection
 				]
 			]);
