@@ -116,7 +116,8 @@ class SuperadminController extends Controller
 
 	public function store(Request $request)
 	{
-		// Validate inputs
+		$this->ensureSuperadmin(request());
+		
 		$validated = $request->validate([
 			'name' => 'required|string|max:255',
 			'email' => 'required|email|unique:users,email',
@@ -133,7 +134,7 @@ class SuperadminController extends Controller
 		// Generate user name with a random suffix
 		$generatedName = $validated['name'] . '-' . Str::random(7);
 		$name = $validated['name'];
-		// Create the user
+		
 		$newuser = new User();
 		$newuser->name = $name;
 		$newuser->email = $validated['email'];
@@ -141,7 +142,7 @@ class SuperadminController extends Controller
 		
 		$newuser->save();
 
-		// Handle image upload
+
 		if ($request->hasFile('img')) {
 			$imgExtension = $request->file('img')->getClientOriginalExtension();
 			$imgName = $generatedName . '-' . $randomSuffixImg . '.' . $imgExtension;
@@ -149,7 +150,7 @@ class SuperadminController extends Controller
 			$newuser->img = 'users/img/' . $imgName;  // Save the relative path
 		}
 
-		// Handle PDF or other files upload
+
 		if ($request->hasFile('pdf')) {
 			$pdfExtension = $request->file('pdf')->getClientOriginalExtension();
 			$pdfName = $generatedName . '-' . $randomSuffixPdf . '.' . $pdfExtension;
@@ -157,11 +158,8 @@ class SuperadminController extends Controller
 			$newuser->pdf = 'users/pdf/' . $pdfName;  // Save the relative path
 		}
 		$role = $validated['role'];
-		// Save user after handling file uploads
 		$newuser->save();
 		$newuser->assignRole($role);  // Assign role using Spatie's assignRole method
-
-		// Return the response
 		return response()->json(['message' => 'User created successfully', 'newuser' => $newuser], 201);
 	}
 
@@ -169,7 +167,7 @@ class SuperadminController extends Controller
 	public function update(Request $request, $id)
 	{
 		   
-    // Or dump the request
+		$this->ensureSuperadmin(request());
 	
 		
 		$newuser = User::findOrFail($id);
@@ -185,11 +183,10 @@ class SuperadminController extends Controller
 			'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
 		]);
 
-		// Create a random suffix for uniqueness
-		$randomSuffixImg = Str::random(7);  // For image
-		$randomSuffixPdf = Str::random(7);  // For PDF (or other file)
+		
+		$randomSuffixImg = Str::random(7);  
+		$randomSuffixPdf = Str::random(7);  
 
-		// Generate user name with a random suffix
 		$generatedName = $validated['name'] . '-' . Str::random(7);
 		$newuser->name = $request->name;
 		$newuser->email = $request->email;
@@ -198,7 +195,7 @@ class SuperadminController extends Controller
 			$newuser->password = bcrypt($request->password);
 		}
 
-		// Handle image upload
+		
 		if ($request->hasFile('img')) {
 			$imgExtension = $request->file('img')->getClientOriginalExtension();
 			$imgName = $generatedName . '-' . $randomSuffixImg . '.' . $imgExtension;
@@ -206,7 +203,6 @@ class SuperadminController extends Controller
 			$newuser->img = 'users/img/' . $imgName;  // Save the relative path
 		}
 
-		// Handle PDF or other files upload
 		if ($request->hasFile('pdf')) {
 			$pdfExtension = $request->file('pdf')->getClientOriginalExtension();
 			$pdfName = $generatedName . '-' . $randomSuffixPdf . '.' . $pdfExtension;
@@ -215,16 +211,12 @@ class SuperadminController extends Controller
 		}
 
 		$newuser->save();
-
-		// Update role
 		$newuser->syncRoles([$request->role]);
 
 		return response()->json([
 			'message' => 'User updated successfully',
 			'usereditted' => $newuser->load('roles'),
 		]);
-
-
 	}
 
 
@@ -254,7 +246,7 @@ class SuperadminController extends Controller
 		
 	public function deleteAll(Request $request)
 	{
-		// Accept JSON payload directly
+		$this->ensureSuperadmin(request());
 		$userIds = $request->input('user_ids');
 
 		if (!is_array($userIds) || empty($userIds)) {
