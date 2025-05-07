@@ -31,63 +31,47 @@ class CatController extends Controller
     {
         $this->ensureSuperadmin(request());
 		$perPage = $request->get('per_page', 10); // Default to 10 if not provided
-		$cats = Cat::orderBy('name', 'asc')->paginate($perPage);
+		
+		$sortField = $request->get('sortField', 'id'); 
+		$sortDirection = $request->get('sortDirection', 'desc'); 
+		$search = $request->get('search', ''); 
+		
+	    $allowedSortFields = ['id', 'name']; 
+		if (!in_array($sortField, $allowedSortFields)) {
+			$sortField = 'id';
+		}
+
+		// Validate direction
+		$sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
+		
+		$cats = Cat::
+			where(function($query) use ($search) {
+				if ($search) {
+					$query->where('name', 'like', "%{$search}%");
+				}
+			})->
+		orderBy($sortField, $sortDirection)->
+		paginate($perPage);
 
 		return response()->json([
 			'cats' => $cats,
 			'log_info' => "Fetching cats",
 		]);
     }
+	
+		public function editsuperadmin(Request $request, $id)
+    {
+        $this->ensureSuperadmin(request());
+		$catedit = Cat::find($id);
+		$cateditid = $catedit->id;
+		return response()->json([
+            'message' => "Row to Edit $cateditid",
+            'catedit' => $catedit
+        ]);
+    }
    
 	
-	public function store(Request $request)
-	{
-		$this->ensureSuperadmin(request());
-		
-		$validated = $request->validate([
-			'name' => 'required|string|max:255',
-			'email' => 'required|email|unique:users,email',
-			'password' => 'required|string|min:6',
-			'role' => 'required|in:superadmin,admin,user',
-			'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9320',
-			'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
-		]);
-
-		// Create a random suffix for uniqueness
-		$randomSuffixImg = Str::random(7);  // For image
-		$randomSuffixPdf = Str::random(7);  // For PDF (or other file)
-
-		// Generate user name with a random suffix
-		$generatedName = $validated['name'] . '-' . Str::random(7);
-		$name = $validated['name'];
-		
-		$newuser = new User();
-		$newuser->name = $name;
-		$newuser->email = $validated['email'];
-		$newuser->password = Hash::make($validated['password']);
-		
-		$newuser->save();
-
-
-		if ($request->hasFile('img')) {
-			$imgExtension = $request->file('img')->getClientOriginalExtension();
-			$imgName = $generatedName . '-' . $randomSuffixImg . '.' . $imgExtension;
-			$imgPath = $request->file('img')->move(public_path('users/img'), $imgName);
-			$newuser->img = 'users/img/' . $imgName;  // Save the relative path
-		}
-
-
-		if ($request->hasFile('pdf')) {
-			$pdfExtension = $request->file('pdf')->getClientOriginalExtension();
-			$pdfName = $generatedName . '-' . $randomSuffixPdf . '.' . $pdfExtension;
-			$pdfPath = $request->file('pdf')->move(public_path('users/pdf'), $pdfName);
-			$newuser->pdf = 'users/pdf/' . $pdfName;  // Save the relative path
-		}
-		$role = $validated['role'];
-		$newuser->save();
-		$newuser->assignRole($role);  // Assign role using Spatie's assignRole method
-		return response()->json(['message' => 'User created successfully', 'newuser' => $newuser], 201);
-	}
+	
 	
 	public function storesuperadmin(Request $request)
 	{
@@ -105,8 +89,63 @@ class CatController extends Controller
 		return response()->json(['message' => 'Cat created successfully', 'newcat' => $newrecord], 201);
 	}
 
+
+	public function updatesuperadmin(Request $request, $id)
+	{
+		   
+		$this->ensureSuperadmin(request());
+	
+		
+		$cattoupdate = Cat::findOrFail($id);
+		$validated = $request->validate([
+			'name' => 'required|string|max:255'
+		]);
+
+		$cattoupdate->name = $request->name;
+		$cattoupdate->save();
+
+		return response()->json([
+			'message' => 'updated successfully',
+			'cateditted' => $cattoupdate,
+		]);
+	}
+
 	
 	
+	public function destroysuperadmin($id)
+    {
+
+        $this->ensureSuperadmin(request());
+		$row = Cat::find($id);
+
+        if (!$row) 
+		{
+            return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $row->delete();
+
+        return response()->json(['message' => ' deleted successfully'], Response::HTTP_OK);
+    }
+	
+		
+	public function deleteAllsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin(request());
+		$catids = $request->input('catids');
+
+		if (!is_array($catids) || empty($catids)) {
+			return response()->json(['message' => 'Invalid or empty user IDs'], 400);
+		}
+
+
+
+		$deletedCount = Cat::whereIn('id', $catids)->delete();
+
+		return response()->json([
+			'message' => "{$deletedCount} rows) deleted successfully"
+		], Response::HTTP_OK);
+	}
 	
 	
 	
