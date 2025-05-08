@@ -30,7 +30,7 @@ class CatController extends Controller
 	public function indexsuperadmin(Request $request)
     {
         $this->ensureSuperadmin(request());
-		$perPage = $request->get('per_page', 10); // Default to 10 if not provided
+		$perPage = $request->get('per_page', 5); // Default to 10 if not provided
 		
 		$sortField = $request->get('sortField', 'id'); 
 		$sortDirection = $request->get('sortDirection', 'desc'); 
@@ -44,7 +44,7 @@ class CatController extends Controller
 		// Validate direction
 		$sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
 		
-		$cats = Cat::
+		$cats = Cat::withCount('subcats')->
 			where(function($query) use ($search) {
 				if ($search) {
 					$query->where('name', 'like', "%{$search}%");

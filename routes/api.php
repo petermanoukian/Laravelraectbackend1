@@ -64,5 +64,6 @@ Route::middleware('auth:sanctum')->group(function () {
 
 Route::post('/cats/check-name', [CatController::class, 'checkCat']);
 Route::post('/cats/check-name-edit', [CatController::class, 'checkCatEdit']);
-
+Route::post('/subcats/check-name', [SubcatController::class, 'checkSub']);
+Route::post('/subcats/check-name-edit', [SubcatController::class, 'checkSubEdit']);
 

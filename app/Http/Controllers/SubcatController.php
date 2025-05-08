@@ -31,7 +31,7 @@ class SubcatController extends Controller
 	public function indexsuperadmin(Request $request, $catid = '')
     {
         $this->ensureSuperadmin(request());
-		$perPage = $request->get('per_page', 10); // Default to 10 if not provided
+		$perPage = $request->get('per_page', 5); // Default to 10 if not provided
 		
 		$sortField = $request->get('sortField', 'id'); 
 		$sortDirection = $request->get('sortDirection', 'desc'); 
@@ -45,21 +45,35 @@ class SubcatController extends Controller
 		// Validate direction
 		$sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
 		
+		$categoryName = null;
+		
+		if ($catid) {
+			$category = Cat::find($catid);
+			$categoryName = $category ? $category->name : null;
+		}
+			
+		
 		$cats = Cat::orderBy("name", 'asc')->get();
 		
-		$subcats = Subcat::
+		$subcats = Subcat::with('cat')->
 			where(function($query) use ($search) {
 				if ($search) {
 					$query->where('name', 'like', "%{$search}%");
 				}
 			})->
-		orderBy($sortField, $sortDirection)->
-		paginate($perPage);
+			where(function($query) use ($catid) {
+				if ($catid) {
+					$query->where('catid', 'like', $catid);
+				}
+			})->
+			orderBy($sortField, $sortDirection)->
+			paginate($perPage);
 
 		return response()->json([
 			'cats' => $cats,
 			'subcats' => $subcats,
-			'log_info' => "Fetching cats",
+			'category_name' => $categoryName,
+			'log_info' => "Fetching cats and subcats",
 		]);
     }
 	
@@ -70,7 +84,7 @@ class SubcatController extends Controller
 	
 		$cats = Cat::orderBy("name", 'asc')->get();
 		return response()->json([
-            'message' => "Row to Edit $subid",
+            'message' => "Row to Add ",
             'cats' => $cats, 'catid' => $catid
         ]);
     }
@@ -215,6 +229,34 @@ class SubcatController extends Controller
 				'log_info' => "Fetching cats",
 			]);
     }
+	
+	
+	
+	public function checkSub(Request $request)
+	{
+		$request->validate([
+			'name' => 'required',
+			'catid' => 'required|integer',
+		]);
+		$exists = Subcat::where('name', $request->name)->where('catid', '=', $request->catid)->exists();
+		return response()->json(['exists' => $exists]);
+	}
+
+	public function checkSubEdit(Request $request)
+	{
+		$request->validate([
+			'name' => 'required',
+			'catid' => 'required|integer',
+			'id' => 'required|integer',
+		]);
+		$exists = Subcat::where('name', $request->name)->where('catid', '=', $request->catid)
+			->where('id', '!=', $request->id)
+			->exists();
+		return response()->json(['exists' => $exists]);
+	}
+	
+	
+	
 	
 
 	
