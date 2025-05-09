@@ -6,6 +6,8 @@ use Illuminate\Http\Request;
 
 use App\Models\User;
 use App\Models\Cat;
+use App\Models\Subcat;
+use App\Models\Prod;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
@@ -122,7 +124,9 @@ class CatController extends Controller
 		{
             return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
         }
-
+		$row->catprods()->delete();        // Directly linked via catid
+		$row->allSubProds()->delete();     // Indirectly linked via subid in subcats
+		$row->subcats()->delete();
         $row->delete();
 
         return response()->json(['message' => ' deleted successfully'], Response::HTTP_OK);
@@ -138,8 +142,15 @@ class CatController extends Controller
 			return response()->json(['message' => 'Invalid or empty user IDs'], 400);
 		}
 
+		Prod::whereIn('catid', $catids)->delete();
 
+		// Get subcategory IDs for those categories
+		$subcatIds = Subcat::whereIn('catid', $catids)->pluck('id');
 
+		// Delete products tied to those subcategories
+		Prod::whereIn('subid', $subcatIds)->delete();
+
+		Subcat::whereIn('catid', $catids)->delete();
 		$deletedCount = Cat::whereIn('id', $catids)->delete();
 
 		return response()->json([

@@ -23,7 +23,7 @@ class SuperadminController extends Controller
 	
 	public function index(Request $request)
     {
-        $this->ensureSuperadmin(request());
+        $this->ensureSuperadmin($request);
 		return response()->json([
             'message' => 'Welcome to the Superadmin dashboard!',
             'user' => $request->user()
@@ -34,7 +34,7 @@ class SuperadminController extends Controller
 	
 	public function edituser(Request $request, $id)
     {
-        $this->ensureSuperadmin(request());
+        $this->ensureSuperadmin($request);
 		$useredit = User::with('roles')->find($id);
 		$usereditid = $useredit->id;
 		return response()->json([
@@ -47,7 +47,7 @@ class SuperadminController extends Controller
 	
 	public function getAllUsers(Request $request)
 	{
-		$this->ensureSuperadmin(request());
+		$this->ensureSuperadmin($request);
 		$perPage = $request->get('per_page', 10); 
 		$sortField = $request->get('sortField', 'id'); 
 		$sortDirection = $request->get('sortDirection', 'desc'); 
@@ -113,7 +113,7 @@ class SuperadminController extends Controller
 
 	public function store(Request $request)
 	{
-		$this->ensureSuperadmin(request());
+		$this->ensureSuperadmin($request);
 		
 		$validated = $request->validate([
 			'name' => 'required|string|max:255',
@@ -164,7 +164,7 @@ class SuperadminController extends Controller
 	public function update(Request $request, $id)
 	{
 		   
-		$this->ensureSuperadmin(request());
+		$this->ensureSuperadmin($request);
 	
 		
 		$newuser = User::findOrFail($id);

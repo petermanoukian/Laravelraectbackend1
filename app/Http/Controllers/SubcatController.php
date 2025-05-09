@@ -8,6 +8,7 @@ use Illuminate\Http\Request;
 use App\Models\User;
 use App\Models\Cat;
 use App\Models\Subcat;
+use App\Models\Prod;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 
@@ -63,7 +64,7 @@ class SubcatController extends Controller
 			})->
 			where(function($query) use ($catid) {
 				if ($catid) {
-					$query->where('catid', 'like', $catid);
+					$query->where('catid', '=', $catid);
 				}
 			})->
 			orderBy($sortField, $sortDirection)->
@@ -95,8 +96,9 @@ class SubcatController extends Controller
 		$sub = Subcat::find($id);
 		$cats = Cat::orderBy("name", 'asc')->get();
 		$subid = $sub->id;
+		$catid = $sub->catid;
 		return response()->json([
-            'message' => "Row to Edit $subid",
+            'message' => "Row to Edit $id",
             'sub' => $sub , 'cats' => $cats, 'catid' => $catid, 'id' => $id
         ]);
     }
@@ -130,7 +132,7 @@ class SubcatController extends Controller
 
 	public function updatesuperadmin(Request $request, $id)
 	{   
-		$this->ensureSuperadmin(request());
+		$this->ensureSuperadmin($request);
 		$sub = Subcat::with('cat')->findOrFail($id);
 		$validated = $request->validate([
 			'name' => [
@@ -195,7 +197,7 @@ class SubcatController extends Controller
 		{
             return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
         }
-
+		$row->subprods()->delete();
         $row->delete();
 
         return response()->json(['message' => ' deleted successfully'], Response::HTTP_OK);
@@ -210,6 +212,8 @@ class SubcatController extends Controller
 		if (!is_array($subids) || empty($subids)) {
 			return response()->json(['message' => 'Invalid or empty user IDs'], 400);
 		}
+		
+		Prod::whereIn('subid', $subids)->delete();
 		$deletedCount = Subcat::whereIn('id', $subids)->delete();
 
 		return response()->json([
