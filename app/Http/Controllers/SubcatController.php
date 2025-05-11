@@ -84,8 +84,18 @@ class SubcatController extends Controller
         $this->ensureSuperadmin(request());
 	
 		$cats = Cat::orderBy("name", 'asc')->get();
+				$categoryName = null;
+				
+		$categoryName = '';		
+		
+		if ($catid) {
+			$category = Cat::find($catid);
+			$categoryName = $category ? $category->name : null;
+		}
+		
+		
 		return response()->json([
-            'message' => "Row to Add ",
+            'message' => "Row to Add ", 'category_name' => $categoryName,
             'cats' => $cats, 'catid' => $catid
         ]);
     }

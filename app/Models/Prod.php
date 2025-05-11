@@ -13,7 +13,7 @@ class Prod extends Model
 {
     use HasRelationships;
 	protected $fillable = [
-        'catid', 'subid','name','des','dess','prix', 'quan' , 'img' , 'pdf' , 'vis'
+        'catid', 'subid','name','des','dess','prix', 'quan' , 'img' , 'pdf' , 'vis'  , 'ordd'
     ];
 	
     public function cat(): BelongsTo
