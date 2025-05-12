@@ -52,6 +52,9 @@ Route::middleware('auth:sanctum')->group(function () {
 		Route::get('/prods/view/{catid?}/{subid?}', [ProdController::class, 'indexsuperadmin']);
 		Route::get('/prod/add/{catid?}/{subid?}', [ProdController::class, 'addsuperadmin']);
 		Route::get('/prod/edit/{id}/{catid?}/{subid?}', [ProdController::class, 'editsuperadmin']);
+		
+		Route::get('/subsbycat/{catid?}', [ProdController::class, 'retrievesubsbycatssupradmin']);
+		
 		Route::post('/prod/add', [ProdController::class, 'storesuperadmin']);	
 		Route::put('/prod/update/{id}', [ProdController::class, 'updatesuperadmin']);	
 		Route::delete('/prod/delete/{id}', [ProdController::class, 'destroysuperadmin']);

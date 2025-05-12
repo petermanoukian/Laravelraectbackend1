@@ -248,7 +248,7 @@ class ProdController extends Controller
 		if ($catid) {
 			$category = Cat::find($catid);
 			$categoryName = $category ? $category->name : null;
-			$subs = Subcat::where('catid', $catid)->orderBy('name', 'asc')->get();
+			$subs = Subcat::withCount('subprods')->where('catid', $catid)->orderBy('name', 'asc')->get();
 		}
 		else
 		{
@@ -264,7 +264,7 @@ class ProdController extends Controller
 		
 		
 		
-		$cats = Cat::orderBy("name", 'asc')->get();
+		$cats = Cat::withCount('subcats')->withCount('catprods')->orderBy("name", 'asc')->get();
 		//$subs = Subcat::orderBy("name", 'asc')->get();
 		$prods = Prod::with('cat')->with('sub')->
 			where(function($query) use ($search) {
@@ -299,13 +299,13 @@ class ProdController extends Controller
     {
         $this->ensureSuperadmin($request);
 	
-		$cats = Cat::orderBy("name", 'asc')->get();
+		$cats = Cat::withCount('subcats')->withCount('catprods')->orderBy("name", 'asc')->get();
 		$categoryName = '';	
 		$subcategoryName = '';
 		
 	    if (!empty($catid)) 
 	    {
-			$subs = Subcat::where('catid', $catid)->orderBy('name', 'asc')->get();
+			$subs = Subcat::withCount('subprods')->where('catid', $catid)->orderBy('name', 'asc')->get();
 			$category = Cat::find($catid);
 			$categoryName = $category ? $category->name : null;
 		} 
@@ -336,10 +336,32 @@ class ProdController extends Controller
         ]);
     }
 	
+	
+	public function retrievesubsbycatssupradmin(Request $request,  $catid='' )
+    {
+        $this->ensureSuperadmin($request);
+	    if (!empty($catid)) 
+	    {
+			$subs = Subcat::where('catid', $catid)->orderBy('name', 'asc')->get();
+		} 
+		else 
+		{
+			$subs =[];
+		}
+		return response()->json([
+
+			'subs' => $subs
+        ]);
+    }
+	
+	
+	
+	
+	
 	public function editsuperadmin(Request $request, $id)
     {
         $this->ensureSuperadmin($request);
-		$prod = Prod::with('cat')->with('subcat')->find($id);
+		$prod = Prod::with('cat')->with('sub')->find($id);
 		
 		if (!$prod) 
 		{
@@ -381,7 +403,7 @@ class ProdController extends Controller
 				'dess' => 'nullable|string|max:65535',
 				'prix' => 'nullable|numeric',
 				'ordd' => 'nullable|numeric',
-				'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9120',
+				'img' => 'nullable|file|mimetypes:image/*|mimes:jpeg,jpg,png,gif,webp|max:9320',
 				'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
 				'vis' => 'required|in:0,1',
 		]);
@@ -434,7 +456,7 @@ class ProdController extends Controller
 	{   
 		$this->ensureSuperadmin($request);
 		
-		$prod = Prod::with('cat')->with('subcat')->find($id);
+		$prod = Prod::with('cat')->with('sub')->find($id);
 		
 		if (!$prod) 
 		{
@@ -442,31 +464,28 @@ class ProdController extends Controller
 		}
 		
 
-		$request->validate([
-			'catid' => 'required|numeric|exists:cats,id',
-			'subid' => 'required|numeric|exists:subcats,id',
-		]);
+			$validated = $request->validate([
+				'catid' => 'required|numeric|exists:cats,id',
+				'subid' => 'required|numeric|exists:subcats,id',
+				'name' => [
+					'required',
+					'string',
+					'max:255',
+					Rule::unique('prods')
+						->where(function ($query) use ($request) {
+							return $query->where('catid', $request->input('catid'))
+										 ->where('subid', $request->input('subid'));
+						})
+						->ignore($id),
+				],
+				'des' => 'nullable|string|max:5000',
+				'dess' => 'nullable|string|max:65535',
+				'prix' => 'nullable|numeric',
+				'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9120',
+				'pdf' => 'nullable|file|mimes:pdf|max:9120',
+				'vis' => 'required|in:0,1',
+			]);
 
-		// Now that we know catid and subid exist, continue validation
-		$validated = $request->validate([
-			'name' => [
-				'required',
-				'string',
-				'max:255',
-				Rule::unique('prods')
-					->where(function ($query) use ($request) {
-						return $query->where('catid', $request->catid)
-									 ->where('subid', $request->subid);
-					})
-					->ignore($id),
-			],
-			'des' => 'nullable|string|max:5000',
-			'dess' => 'nullable|string|max:65535',
-			'prix' => 'nullable|numeric',
-			'img' => 'nullable|image|mimes:jpeg,png,jpg,gif,webp|max:9120',
-			'pdf' => 'nullable|file|mimes:pdf|max:9120',
-			'vis' => 'required|in:0,1',
-		]);
 
 
 		$name = $validated['name'];
@@ -477,11 +496,10 @@ class ProdController extends Controller
 		$dess = $validated['dess'] ?? null;
 		$dess = $dess ? Purifier::clean($dess, [
 			'HTML.Allowed' => 'p,b,strong,i,em,u,ul,ol,li,br,a[href|target],img[src|alt|width|height],h1,h2,h3,blockquote,span,div,table,tr,td,th,thead,tbody',
-			'HTML.SafeIframe' => false, // disallow <iframe>
-			'HTML.SafeObject' => false, // disallow <object> and <embed> tags
+			'HTML.SafeIframe' => false, // Disallow <iframe> tags
+			'HTML.SafeObject' => false, // Disallow <object> and <embed> tags
 			'HTML.AllowedAttributes' => 'href,src,alt,width,height', // Allowed attributes for security
 			'HTML.AllowedElements' => 'p,b,strong,i,em,u,ul,ol,li,br,a,img,h1,h2,h3,blockquote,span,div,table,tr,td,th,thead,tbody', // Safe elements only
-			'HTML.SafeTags' => 'script,style,iframe,object,embed', // explicitly block dangerous tags
 		]) : null;
 
 		
@@ -501,10 +519,16 @@ class ProdController extends Controller
 		$generatedName = $validated['name'] . '-' . Str::random(2);
 		$randomSuffixImg = Str::random(5);  // For image
 		$randomSuffixPdf = Str::random(5);  // For PDF (or other file)
-		
-		
-		$prod->pdf = $this->handlePdfUpload($request, $generatedName, $randomSuffixPdf);
-		$prod->img = $this->handleImageUpload($request, $generatedName, $randomSuffixImg);
+	
+		if ($request->hasFile('pdf')) {
+			$prod->pdf = $this->handlePdfUpload($request, $generatedName, $randomSuffixPdf);
+		}
+
+		if ($request->hasFile('img')) {
+			$prod->img = $this->handleImageUpload($request, $generatedName, $randomSuffixImg);
+		}
+	
+	
 		$prod->save();
 		return response()->json(['message' => 'Product updated successfully', 'prod' => $prod], 200);
 	}

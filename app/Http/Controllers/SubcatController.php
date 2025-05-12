@@ -56,7 +56,7 @@ class SubcatController extends Controller
 		
 		$cats = Cat::orderBy("name", 'asc')->get();
 		
-		$subcats = Subcat::with('cat')->
+		$subcats = Subcat::with('cat')->withCount('subprods')->
 			where(function($query) use ($search) {
 				if ($search) {
 					$query->where('name', 'like', "%{$search}%");

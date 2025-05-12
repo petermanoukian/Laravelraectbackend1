@@ -46,7 +46,7 @@ class CatController extends Controller
 		// Validate direction
 		$sortDirection = strtolower($sortDirection) === 'asc' ? 'asc' : 'desc';
 		
-		$cats = Cat::withCount('subcats')->
+		$cats = Cat::withCount('subcats')->withCount('catprods')->
 			where(function($query) use ($search) {
 				if ($search) {
 					$query->where('name', 'like', "%{$search}%");
