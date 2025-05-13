@@ -21,13 +21,8 @@ use Illuminate\Support\Facades\Storage;
 
 
 
-
-
-
 class ProdController extends Controller
 {
-   
-
 
    protected function ensureSuperadmin(Request $request)
 	{
@@ -550,6 +545,44 @@ class ProdController extends Controller
 
 		return response()->json(['exists' => $exists]);
 	}
+
+
+public function destroysuperadmin($id)
+    {
+
+        $this->ensureSuperadmin(request());
+		$row = Prod::find($id);
+
+        if (!$row) 
+		{
+            return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $row->delete();
+
+        return response()->json(['message' => ' deleted successfully'], Response::HTTP_OK);
+    }
+	
+		
+	public function deleteAllsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin(request());
+		$ids = $request->input('prodids');
+
+		if (!is_array($ids) || empty($ids)) {
+			return response()->json(['message' => 'Invalid or empty  IDs'], 400);
+		}
+
+
+		$deletedCount = Prod::whereIn('id', $ids)->delete();
+
+		return response()->json([
+			'message' => "{$deletedCount} rows) deleted successfully"
+		], Response::HTTP_OK);
+	}
+
+
+
 
 	public function checkProdEdit(Request $request)
 	{
