@@ -5,9 +5,12 @@ namespace App\Models;
 use Illuminate\Database\Eloquent\Model;
 use App\Models\Cat;
 use App\Models\Subcat;
+use App\Models\Tagg;
+use App\Models\Taggprod;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
 use Staudenmeir\EloquentHasManyDeep\HasRelationships;
+use Illuminate\Database\Eloquent\Relations\BelongsToMany;
 
 class Prod extends Model
 {
@@ -36,6 +39,11 @@ class Prod extends Model
             '',
             [\App\Models\Subcat::class => 'subid']
         );
+    }
+
+    public function taggs(): BelongsToMany
+    {
+        return $this->belongsToMany(Tagg::class, 'prodtaggs', 'prodid', 'taggid')->withTimestamps();
     }
 	
 	/* usage 

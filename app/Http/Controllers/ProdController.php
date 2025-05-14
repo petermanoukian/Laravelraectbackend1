@@ -8,6 +8,8 @@ use App\Models\User;
 use App\Models\Cat;
 use App\Models\Subcat;
 use App\Models\Prod;
+use App\Models\Tagg;
+use App\Models\Prodtagg;
 use Illuminate\Http\Response;
 use Illuminate\Validation\Rule;
 use Intervention\Image\ImageManager;
@@ -256,9 +258,7 @@ class ProdController extends Controller
 			$subcategory = Subcat::find($subid);
 			$subcategoryName = $subcategory ? $subcategory->name : null;
 		}
-		
-		
-		
+
 		$cats = Cat::withCount('subcats')->withCount('catprods')->orderBy("name", 'asc')->get();
 		//$subs = Subcat::orderBy("name", 'asc')->get();
 		$prods = Prod::with('cat')->with('sub')->
@@ -547,7 +547,7 @@ class ProdController extends Controller
 	}
 
 
-public function destroysuperadmin($id)
+	public function destroysuperadmin($id)
     {
 
         $this->ensureSuperadmin(request());
@@ -602,11 +602,330 @@ public function destroysuperadmin($id)
 		return response()->json(['exists' => $exists]);
 	}
 
+	//tagprods starts here
 	
+	public function indexprodtagsuperadmin(Request $request, $prodid = 0, $taggid = 0)
+	{
+		$this->ensureSuperadmin($request);
+
+		$perPage = $request->get('per_page', 5);
+		$sortField = $request->get('sortField', 'id'); 
+		$sortDirection = strtolower($request->get('sortDirection', 'desc')) === 'asc' ? 'asc' : 'desc';
+
+		$searchProd = $request->get('searchProd', '');
+		$searchTagg = $request->get('searchTagg', '');
+
+		$allowedSortFields = ['id', 'prodid', 'taggid'];
+		if (!in_array($sortField, $allowedSortFields)) {
+			$sortField = 'id';
+		}
+
+		// Get tagg name
+		$taggName = null;
+		if (isset($taggid) && $taggid != 0) {
+			$tagg = Tagg::find($taggid);
+			$taggName = $tagg?->name;
+		}
+
+		// Get prod name
+		$prodName = null;
+		if (isset($prodid) && $prodid != 0) {
+			$prod = Prod::find($prodid);
+			$prodName = $prod?->name;
+		}
+
+		// All prods and taggs for dropdowns
+		$prods = Prod::select('id', 'name')->orderBy('name', 'asc')->get();
+		$taggs = Tagg::select('id', 'name')->orderBy('name', 'asc')->get();
+
+		// Main query
+		$prodtaggs = Prodtagg::with(['prod', 'tagg'])
+			->when($searchProd, function ($query) use ($searchProd) {
+				$query->whereHas('prod', function ($q) use ($searchProd) {
+					$q->where('name', 'like', "%{$searchProd}%");
+				});
+			})
+			->when($searchTagg, function ($query) use ($searchTagg) {
+				$query->whereHas('tagg', function ($q) use ($searchTagg) {
+					$q->where('name', 'like', "%{$searchTagg}%");
+				});
+			})
+			->when($prodid != 0, fn($query) => $query->where('prodid', $prodid))
+			->when($taggid != 0, fn($query) => $query->where('taggid', $taggid))
+			->orderBy($sortField, $sortDirection)
+			->paginate($perPage);
+
+		return response()->json([
+			'taggs' => $taggs,
+			'prods' => $prods,
+			'prodtaggs' => $prodtaggs,
+			'prodName' => $prodName,
+			'taggName' => $taggName,
+			'log_info' => "Filtering by product and tagg names separately",
+		]);
+	}
+
 	
+
+	public function addprodtagsuperadmin(Request $request, $prodid = 0, $taggid = 0)
+	{
+		$this->ensureSuperadmin($request);
+
+		$taggName = null;
+		if ($taggid != 0) {
+			$tagg = Tagg::find($taggid);
+			$taggName = $tagg?->name;
+		}
+
+		$prodName = null;
+		if ($prodid != 0) {
+			$prod = Prod::find($prodid);
+			$prodName = $prod?->name;
+		}
+
+		$prods = Prod::select('id', 'name')->withCount('taggs')->orderBy('name', 'asc')->get();
+		$taggs = Tagg::select('id', 'name')->withCount('prods')->orderBy('name', 'asc')->get();
+
+		return response()->json([
+			'message' => "Row to Add",
+			'prods' => $prods,
+			'taggs' => $taggs, // <- was missing
+			'prodName' => $prodName,
+			'taggName' => $taggName,
+			'prodid' => $prodid,
+			'taggid' => $taggid,
+		]);
+	}
+
+
+	public function editprodtagsuperadmin(Request $request, $id)
+	{
+		$this->ensureSuperadmin($request);
+
+		// Retrieve the prodtagg record along with its related prod and tagg
+		$prodtagg = Prodtagg::with(['prod', 'tagg'])->find($id);
+		
+		// If no prodtagg record is found, return a 404 error
+		if (!$prodtagg) {
+			return response()->json(['message' => 'Record not found'], 404);
+		}
+
+		// Get all products and all taggs
+		$prods = Prod::select('id', 'name')->withCount('taggs')->orderBy('name', 'asc')->get();
+		$taggs = Tagg::select('id', 'name')->withCount('prods')->orderBy('name', 'asc')->get();
+
+		// Get the current prodid and taggid from the prodtagg record
+		$prodid = $prodtagg->prodid;
+		$taggid = $prodtagg->taggid;
+
+		// Get related products (products that are linked to this tagg)
+		$relatedProds = $prodtagg->prod->taggs->pluck('id')->toArray();
+
+		// Get related taggs (taggs that are linked to this product)
+		$relatedTaggs = $prodtagg->tagg->prods->pluck('id')->toArray();
+
+		return response()->json([
+			'message' => "Row to Edit $id",
+			'prods' => $prods, // All products available
+			'taggs' => $taggs, // All taggs available
+			'prodid' => $prodid, // The current product
+			'taggid' => $taggid, // The current tagg
+			'prodtagg' => $prodtagg, // The prodtagg record
+			'id' => $id, // The prodtagg ID
+			'relatedProds' => $relatedProds, // IDs of products related to the tagg
+			'relatedTaggs' => $relatedTaggs, // IDs of taggs related to the product
+		]);
+	}
+
+
 	
+
+	public function storeprodtagsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin($request);
+
+		$validated = $request->validate([
+			'prodids' => 'required|array|min:1',
+			'prodids.*' => 'integer|exists:prods,id',
+			'taggids' => 'required|array|min:1',
+			'taggids.*' => 'integer|exists:taggs,id',
+		]);
+
+		$prodids = $validated['prodids'];
+		$taggids = $validated['taggids'];
+
+		$entriesToAdd = [];
+
+		foreach ($prodids as $prodid) {
+			$prod = Prod::find($prodid);
+			if ($prod) {
+				$existingTaggs = $prod->taggs()->pluck('taggid')->toArray();
+
+				foreach ($taggids as $taggid) {
+					if (!in_array($taggid, $existingTaggs)) {
+						$entriesToAdd[] = [
+							'prodid' => $prodid,
+							'taggid' => $taggid,
+							'created_at' => now(),
+							'updated_at' => now(),
+						];
+					}
+				}
+			}
+		}
+
+		// ✅ Insert only once
+		if (!empty($entriesToAdd)) {
+			Prodtagg::insert($entriesToAdd);
+		}
+
+		return response()->json([
+			'message' => 'Product-Tag associations stored successfully.',
+			'prods_tagged' => $prodids,
+			'tags_attached' => $taggids,
+		], 201);
+	}
+
+
+
 	
+	public function updateprodtagsuperadmin(Request $request, $id)
+	{
+		$this->ensureSuperadmin($request);
+
+		$validated = $request->validate([
+			'prodids' => 'required|array|min:1',
+			'prodids.*' => 'integer|exists:prods,id',
+			'taggids' => 'required|array|min:1',
+			'taggids.*' => 'integer|exists:taggs,id',
+		]);
+
+		$prodids = $validated['prodids'];
+		$taggids = $validated['taggids'];
+
+		// Fetch all relevant products at once
+		$products = Prod::whereIn('id', $prodids)->get();
+
+		$synced = [];
+
+		foreach ($products as $prod) {
+			// Sync the new tags, removing any that are not part of the new list
+			$prod->taggs()->sync($taggids); // Replaces old tags with new tags
+
+			$synced[] = [
+				'prodid' => $prod->id,
+				'taggids' => $taggids,
+			];
+		}
+
+		return response()->json([
+			'message' => 'Product-tag mappings updated successfully',
+			'synced' => $synced,
+		]);
+	}
+
+
+
+/*
+	public function storeprodtagsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin($request);
+
+		// Validate that prodids and taggids are arrays and not empty
+		$validated = $request->validate([
+			'prodids' => 'required|array|min:1', // Ensure at least one prodid
+			'prodids.*' => 'exists:prods,id',    // Ensure each prodid exists in the prods table
+			'taggids' => 'required|array|min:1', // Ensure at least one taggid
+			'taggids.*' => 'exists:taggs,id',    // Ensure each taggid exists in the taggs table
+		]);
+
+		// Get the arrays of prodids and taggids from the request
+		$prodids = $validated['prodids'];
+		$taggids = $validated['taggids'];
+
+		// Loop through each combination of prodid and taggid
+		$newrecords = [];
+		foreach ($prodids as $prodid) {
+			foreach ($taggids as $taggid) {
+				// Create a new prodtagg record
+				$newrecord = new Prodtagg();
+				$newrecord->prodid = $prodid;
+				$newrecord->taggid = $taggid;
+
+				// Save the new record
+				$newrecord->save();
+
+				// Store the new record in the array to return
+				$newrecords[] = $newrecord;
+			}
+		}
+
+		// Return a success response with the newly created records
+		return response()->json([
+			'message' => 'Product-Tag associations created successfully',
+			'newprodtaggs' => $newrecords,
+		], 201);
+	}
+
+	*/
+
+	/*
+
+	public function storeprodtagsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin($request);
+
+		$validated = $request->validate([
+			'prodids' => 'required|array|min:1',
+			'prodids.*' => 'integer|exists:prods,id',
+			'taggids' => 'required|array|min:1',
+			'taggids.*' => 'integer|exists:taggs,id',
+		]);
+
+		$prodids = $validated['prodids'];
+		$taggids = $validated['taggids'];
+
+		// Optional: Prevent duplicate combinations
+		$existing = Prodtagg::whereIn('prodid', $prodids)
+			->whereIn('taggid', $taggids)
+			->get()
+			->map(function ($item) {
+				return $item->prodid . '_' . $item->taggid;
+			})
+			->toArray();
+
+		$dataToInsert = [];
+
+		foreach ($prodids as $prodid) {
+			foreach ($taggids as $taggid) {
+				$comboKey = $prodid . '_' . $taggid;
+				if (!in_array($comboKey, $existing)) {
+					$dataToInsert[] = [
+						'prodid' => $prodid,
+						'taggid' => $taggid,
+						'created_at' => now(),
+						'updated_at' => now(),
+					];
+				}
+			}
+		}
+
+		if (!empty($dataToInsert)) {
+			Prodtagg::insert($dataToInsert);
+		}
+
+		return response()->json([
+			'message' => 'Product-Tag associations created successfully',
+			'inserted_count' => count($dataToInsert),
+		], 201);
+	}
+
+	*/
+
+
+
 	
+
 	
 	
 	

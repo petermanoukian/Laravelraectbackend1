@@ -7,6 +7,7 @@ use App\Http\Controllers\Superadmin\SuperadminController;
 use App\Http\Controllers\CatController;
 use App\Http\Controllers\SubcatController;
 use App\Http\Controllers\ProdController;
+use App\Http\Controllers\TaggController;
 
 // Auth routes
 Route::post('/login', [LoginController::class, 'login'])->middleware('api');
@@ -51,14 +52,33 @@ Route::middleware('auth:sanctum')->group(function () {
 		
 		Route::get('/prods/view/{catid?}/{subid?}', [ProdController::class, 'indexsuperadmin']);
 		Route::get('/prod/add/{catid?}/{subid?}', [ProdController::class, 'addsuperadmin']);
-		Route::get('/prod/edit/{id}/{catid?}/{subid?}', [ProdController::class, 'editsuperadmin']);
-		
-		Route::get('/subsbycat/{catid?}', [ProdController::class, 'retrievesubsbycatssupradmin']);
-		
+		Route::get('/prod/edit/{id}/{catid?}/{subid?}', [ProdController::class, 'editsuperadmin']);	
+		Route::get('/subsbycat/{catid?}', [ProdController::class, 'retrievesubsbycatssupradmin']);	
 		Route::post('/prod/add', [ProdController::class, 'storesuperadmin']);	
 		Route::put('/prod/update/{id}', [ProdController::class, 'updatesuperadmin']);	
 		Route::delete('/prod/delete/{id}', [ProdController::class, 'destroysuperadmin']);
 		Route::delete('/prods/deleteall', [ProdController::class, 'deleteAllsuperadmin']);
+
+
+		Route::get('/taggs/view/{prodid?}', [TaggController::class, 'indexsuperadmin']);
+		Route::get('/tagg/add', [TaggController::class, 'addsuperadmin']);
+		Route::get('/tagg/edit/{id}', [TaggController::class, 'editsuperadmin']);	
+
+		Route::post('/tagg/add', [TaggController::class, 'storesuperadmin']);	
+		Route::put('/tagg/update/{id}', [TaggController::class, 'updatesuperadmin']);	
+		Route::delete('/tagg/delete/{id}', [TaggController::class, 'destroysuperadmin']);
+		Route::delete('/taggs/deleteall', [TaggController::class, 'deleteAllsuperadmin']);
+
+
+		Route::get('/prodtaggs/view/{prodid?}/{taggid?}', [ProdController::class, 'indexprodtagsuperadmin']);
+		Route::get('/prodtagg/add/{prodid?}/{taggid?}', [ProdController::class, 'addprodtagsuperadmin']);
+		Route::get('/prodtagg/edit/{id}/', [ProdController::class, 'editprodtagsuperadmin']);	
+		Route::post('/prodtaggs/add', [ProdController::class, 'storeprodtagsuperadmin']);	
+		Route::put('/prodtagg/update/{id}', [ProdController::class, 'updateprodtagsuperadmin']);	
+		Route::delete('/prodtagg/delete/{id}', [ProdController::class, 'destroyprodtagsuperadmin']);
+		Route::delete('/prodtaggs/deleteall', [ProdController::class, 'deleteAllprodtagsuperadmin']);
+
+
 		
     });
 	
@@ -75,3 +95,7 @@ Route::post('/subcats/check-name', [SubcatController::class, 'checkSub']);
 Route::post('/subcats/check-name-edit', [SubcatController::class, 'checkSubEdit']);
 Route::post('/prods/check-name', [ProdController::class, 'checkProd']);
 Route::post('/prods/check-name-edit', [ProdController::class, 'checkProdEdit']);
+Route::post('/taggs/check-name', [TaggController::class, 'checkTagg']);
+Route::post('/taggs/check-name-edit', [TaggController::class, 'checkTaggEdit']);
+
+
