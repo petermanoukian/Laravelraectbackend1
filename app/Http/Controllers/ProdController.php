@@ -295,6 +295,7 @@ class ProdController extends Controller
         $this->ensureSuperadmin($request);
 	
 		$cats = Cat::withCount('subcats')->withCount('catprods')->orderBy("name", 'asc')->get();
+		$taggs = Tagg::orderBy("name", 'asc')->get();
 		$categoryName = '';	
 		$subcategoryName = '';
 		
@@ -327,7 +328,7 @@ class ProdController extends Controller
 			'category_name' => $categoryName,
 			'subcategory_name' => $subcategoryName,
             'cats' => $cats, 'catid' => $catid ,
-			'subs' => $subs, 'subid' => $subid
+			'subs' => $subs, 'subid' => $subid , 'taggs' => $taggs
         ]);
     }
 	
@@ -348,15 +349,12 @@ class ProdController extends Controller
 			'subs' => $subs
         ]);
     }
-	
-	
-	
-	
+
 	
 	public function editsuperadmin(Request $request, $id)
     {
         $this->ensureSuperadmin($request);
-		$prod = Prod::with('cat')->with('sub')->find($id);
+		$prod = Prod::with(['cat', 'sub', 'taggs'])->find($id);
 		
 		if (!$prod) 
 		{
@@ -368,11 +366,15 @@ class ProdController extends Controller
 		$subs = Subcat::orderBy("name", 'asc')->get();
 		$subid = $prod->subid;
 		$catid = $prod->catid;
+		$taggs = Tagg::orderBy("name", 'asc')->get();
+		$taggids = $prod->taggs->pluck('id');
 		return response()->json([
             'message' => "Row to Edit $id",
             'prod' => $prod , 
 			'cats' => $cats, 'catid' => $catid, 
 			'subs' => $subs, 'subid' => $subid ,
+			'taggs' => $taggs,           
+        	'taggids' => $taggids,    
 			'id' => $id
 
         ]);
@@ -401,6 +403,8 @@ class ProdController extends Controller
 				'img' => 'nullable|file|mimetypes:image/*|mimes:jpeg,jpg,png,gif,webp|max:9320',
 				'pdf' => 'nullable|file|mimes:pdf,doc,docx,txt,jpeg,jpg,png|max:9320',
 				'vis' => 'required|in:0,1',
+				'taggids' => 'nullable|array',
+				'taggids.*' => 'integer|exists:taggs,id',
 		]);
 		$name = $validated['name'];
 		$catid = $validated['catid'];
@@ -439,8 +443,10 @@ class ProdController extends Controller
 		
 		$newrecord->pdf = $this->handlePdfUpload($request, $generatedName, $randomSuffixPdf);
 		$newrecord->img = $this->handleImageUpload($request, $generatedName, $randomSuffixImg);
-
-		$newrecord->save();
+		$newrecord->save();	
+		$tagIds = $validated['taggids'] ?? [];
+		$newrecord->taggs()->sync($tagIds);
+		
 		return response()->json(['message' => 'Product created successfully', 'newprod' => $newrecord], 201);
 	}
 	
@@ -525,6 +531,10 @@ class ProdController extends Controller
 	
 	
 		$prod->save();
+
+		$taggids = $request->input('taggids', []);
+		$prod->taggs()->sync($taggids);
+
 		return response()->json(['message' => 'Product updated successfully', 'prod' => $prod], 200);
 	}
 	
@@ -701,10 +711,8 @@ class ProdController extends Controller
 	public function editprodtagsuperadmin(Request $request, $id)
 	{
 		$this->ensureSuperadmin($request);
-
 		// Retrieve the prodtagg record along with its related prod and tagg
 		$prodtagg = Prodtagg::with(['prod', 'tagg'])->find($id);
-		
 		// If no prodtagg record is found, return a 404 error
 		if (!$prodtagg) {
 			return response()->json(['message' => 'Record not found'], 404);
@@ -923,6 +931,39 @@ class ProdController extends Controller
 	*/
 
 
+	public function destroyprodtagsuperadmin($id)
+    {
+
+        $this->ensureSuperadmin(request());
+		$row = Prodtagg::find($id);
+
+        if (!$row) 
+		{
+            return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
+        }
+
+        $row->delete();
+
+        return response()->json(['message' => ' deleted successfully'], Response::HTTP_OK);
+    }
+	
+		
+	public function deleteAllprodtagsuperadmin(Request $request)
+	{
+		$this->ensureSuperadmin(request());
+		$ids = $request->input('prodtaggids');
+
+		if (!is_array($ids) || empty($ids)) {
+			return response()->json(['message' => 'Invalid or empty  IDs'], 400);
+		}
+
+
+		$deletedCount = Prodtagg::whereIn('id', $ids)->delete();
+
+		return response()->json([
+			'message' => "{$deletedCount} rows) deleted successfully"
+		], Response::HTTP_OK);
+	}
 
 	
 
