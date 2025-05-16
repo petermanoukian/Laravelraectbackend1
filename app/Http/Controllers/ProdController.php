@@ -221,8 +221,6 @@ class ProdController extends Controller
 
 
 	
-	
-	
 	public function indexsuperadmin(Request $request, $catid = '' , $subid = '')
     {
         $this->ensureSuperadmin($request);
@@ -260,8 +258,10 @@ class ProdController extends Controller
 		}
 
 		$cats = Cat::withCount('subcats')->withCount('catprods')->orderBy("name", 'asc')->get();
+		$alltaggs = Tagg::orderBy('name', 'asc')->get(['id', 'name']);
+
 		//$subs = Subcat::orderBy("name", 'asc')->get();
-		$prods = Prod::with('cat')->with('sub')->
+		$prods = Prod::with('cat')->with('sub')->with('taggs')->
 			where(function($query) use ($search) {
 				if ($search) {
 					$query->where('name', 'like', "%{$search}%");
@@ -276,8 +276,16 @@ class ProdController extends Controller
 				if ($subid) {
 					$query->where('subid', '=', $subid);
 				}
-			})->
-			orderBy($sortField, $sortDirection)->
+			})		
+			->where(function ($query) use ($request) {
+				if ($request->filled('taggids')) {
+					$taggids = explode(',', $request->taggids);
+					$query->whereHas('taggs', function ($q) use ($taggids) {
+						$q->whereIn('taggs.id', $taggids);
+					});
+				}
+			})
+			->orderBy($sortField, $sortDirection)->
 			paginate($perPage);
 
 		return response()->json([
@@ -285,6 +293,7 @@ class ProdController extends Controller
 			'subcats' => $subs,
 			'prods' => $prods,
 			'category_name' => $categoryName,
+			'alltaggs' => $alltaggs,
 			'subcategory_name' => $subcategoryName,
 			'log_info' => "Fetching prods, cats and subcats",
 		]);

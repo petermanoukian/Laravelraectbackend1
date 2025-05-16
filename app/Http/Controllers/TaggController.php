@@ -113,7 +113,7 @@ class TaggController extends Controller
 		{
             return response()->json(['message' => 'not found'], Response::HTTP_NOT_FOUND);
         }
-
+		Taggprod::where('taggid', $id)->delete();
 		//$row->taggprods()->delete();
         $row->delete();
 
@@ -130,8 +130,9 @@ class TaggController extends Controller
 			return response()->json(['message' => 'Invalid or empty user IDs'], 400);
 		}
 
+		$deletedTaggprodCount = Taggprod::whereIn('taggid', $ids)->delete();
 
-
+		
 		//Taggprod::whereIn('taggid', $ids)->delete();
 		$deletedCount = Tagg::whereIn('id', $ids)->delete();
 

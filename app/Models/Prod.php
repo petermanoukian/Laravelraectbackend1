@@ -44,6 +44,13 @@ class Prod extends Model
     public function taggs(): BelongsToMany
     {
         return $this->belongsToMany(Tagg::class, 'prodtaggs', 'prodid', 'taggid')->withTimestamps();
+    } 
+
+    protected static function booted()
+    {
+        static::deleting(function ($prod) {
+            $prod->taggs()->detach(); // Detach all taggs from this product
+        });
     }
 	
 	/* usage 

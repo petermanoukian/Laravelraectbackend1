@@ -18,4 +18,11 @@ class Tagg extends Model
         return $this->belongsToMany(Prod::class, 'prodtaggs', 'taggid', 'prodid')->withTimestamps();
     }
 
+    protected static function booted()
+    {
+        static::deleting(function ($tagg) {
+            $tagg->prods()->detach(); // Remove tagg from all products
+        });
+    }
+
 }
